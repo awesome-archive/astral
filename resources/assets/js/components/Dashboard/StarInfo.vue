@@ -13,6 +13,18 @@
         />
         <span>{{ notesShowing ? 'Hide Notes' : 'Show Notes' }}</span>
       </button>
+      <button
+        class="bg-grey-light hover:bg-grey transition-bg rounded text-grey-darkest text-xs px-2 py-2 font-bold tracking-wide uppercase focus-none no-underline ml-4"
+        @click="unstar"
+      >
+        <Icon
+          type="StarIcon"
+          height="16"
+          width="16"
+          class="mr-1 pointer-events-none stroke-current fill-none inline-block align-bottom"
+        />
+        <span>Unstar</span>
+      </button>
       <div class="ml-auto">
         <label for="starCloneUrl" class="mr-2 font-bold cursor-pointer">Clone:</label>
         <input
@@ -36,6 +48,12 @@
     <div v-if="repoHasNoReadme" class="flex flex-col flex-1 items-center justify-center w-full bg-grey-lighter">
       <img src="/images/no-readme.svg" class="w-64 mb-8" />
       <span class="font-bold bg-grey px-4 py-2 text-white rounded">No README Found</span>
+    </div>
+    <div
+      class="readme-loader absolute pin-t pib-b pin-l w-full flex items-center justify-center h-full transition-opacity opacity-0 pointer-events-none"
+      :class="{ 'opacity-100 pointer-events-auto': readmeLoading }"
+    >
+      <img src="/images/status-spinner-dark.svg" alt="..." class="spin" width="32" height="32" />
     </div>
     <NotesEditor
       v-if="notesEditorShowing"
@@ -63,12 +81,12 @@ export default {
     }
   },
   computed: {
-    ...mapGetters(['readme', 'currentStar', 'user']),
+    ...mapGetters(['readme', 'readmeLoading', 'currentStar', 'user']),
     noRepoSelected() {
       return !Object.keys(this.currentStar).length
     },
     repoHasNoReadme() {
-      return Object.keys(this.currentStar).length && !this.readme
+      return Object.keys(this.currentStar).length && !this.readme && !this.readmeLoading
     },
     currentStarCloneUrl() {
       return `git@github.com:${this.currentStar.node.nameWithOwner}.git`
@@ -88,7 +106,7 @@ export default {
     }
   },
   methods: {
-    ...mapActions(['editStarNotes']),
+    ...mapActions(['editStarNotes', 'unstarStar']),
     async doEditStarNotes(notes) {
       this.editStarNotes({
         id: this.currentStar.node.databaseId,
@@ -98,11 +116,29 @@ export default {
     },
     highlightText(e) {
       e.currentTarget.select()
+    },
+    unstar() {
+      if (this.user.scope !== 'public_repo') {
+        if (
+          window.confirm('Unstarring repositories requires elevated auth privileges. Would you like to grant them?')
+        ) {
+          window.location.assign('/auth/github?scope=public_repo')
+        }
+      } else {
+        this.unstarStar({
+          databaseId: this.currentStar.node.databaseId,
+          nodeId: this.currentStar.node.id
+        })
+      }
     }
   }
 }
 </script>
 <style lang="scss" scoped>
+.readme-loader {
+  background-color: rgba(#fff, 0.85);
+}
+
 .github-clone-url {
   width: 300px;
   &:focus {
